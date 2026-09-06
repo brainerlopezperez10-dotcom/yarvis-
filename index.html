@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>J.A.R.V.I.S. Mobile System</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { background: #050811; color: #00f3ff; font-family: monospace; height: 100vh; height: -webkit-fill-available; overflow: hidden; display: flex; flex-direction: column; }
+    
+    #canvas-container { width: 100%; height: 42vh; position: relative; background: #02040a; touch-action: none; }
+    #header-panel { position: absolute; top: 8px; left: 8px; right: 8px; background: rgba(5, 15, 25, 0.85); border: 1px solid #00f3ff; padding: 6px 10px; border-radius: 6px; display: flex; justify-content: space-between; z-index: 10; font-size: 10px; }
+    
+    /* PANEL DE CHAT ELEVADO Y RESTRUCTURADO */
+    #chat-panel { width: 100%; height: 58vh; background: rgba(5, 15, 25, 0.95); border-top: 2px solid #00f3ff; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+    #chat-log { flex: 1; overflow-y: auto; font-size: 12px; display: flex; flex-direction: column; gap: 6px; border: 1px solid rgba(0,243,255,0.2); padding: 8px; border-radius: 4px; background: rgba(0,0,0,0.4); }
+    .msg { padding: 6px 8px; border-radius: 4px; max-width: 88%; word-break: break-word; }
+    .user { color: #fff; background: rgba(255,255,255,0.12); align-self: flex-end; }
+    .jarvis { color: #00f3ff; background: rgba(0,243,255,0.15); align-self: flex-start; border-left: 3px solid #00f3ff; }
+    
+    #model-select { height: 36px; background: #050811; border: 1px solid #00f3ff; color: #00f3ff; padding: 0 8px; border-radius: 4px; font-weight: bold; font-size: 11px; width: 100%; }
+    
+    /* CONTROLES DE ENTRADA TOTALMENTE VISIBLES */
+    #controls { display: flex; gap: 6px; height: 44px; width: 100%; }
+    input[type="text"] { flex: 1; height: 100%; background: rgba(0,0,0,0.6); border: 1px solid #00f3ff; color: #fff; padding: 0 10px; border-radius: 4px; outline: none; font-size: 13px; min-width: 0; }
+    button { height: 100%; background: rgba(0,243,255,0.2); border: 1px solid #00f3ff; color: #00f3ff; padding: 0 12px; cursor: pointer; border-radius: 4px; font-weight: bold; font-size: 12px; white-space: nowrap; }
+    button:active { background: #00f3ff; color: #000; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+  <div id="canvas-container">
+    <div id="header-panel">
+      <div><b>J.A.R.V.I.S. // HUD</b> | <span id="api-provider">GEMINI 3.6-FLASH</span></div>
+      <div>ZOOM: TÁCTIL</div>
+    </div>
+  </div>
+
+  <div id="chat-panel">
+    <div id="chat-log"></div>
+    <select id="model-select" onchange="changeModel(this.value)">
+      <option value="0">Icosaedro</option>
+      <option value="1">Reactor Arc</option>
+      <option value="2">Cubo Tesseract</option>
+      <option value="3">Esfera Geo</option>
+      <option value="4">Cilindro Núcleo</option>
+      <option value="5">Nudo Toroidal</option>
+      <option value="6">Dodecaedro</option>
+      <option value="7">Anillo Orbital</option>
+      <option value="8">Pirámide Táctica</option>
+      <option value="9">Octaedro Cuántico</option>
+      <option value="10">Matriz de Puntos</option>
+    </select>
+    <div id="controls">
+      <input type="text" id="user-input" placeholder="Ordene, señor..." onkeypress="if(event.key==='Enter') sendMsg()">
+      <button onclick="sendMsg()">ENVIAR</button>
+      <button onclick="toggleMic()">🎤</button>
+    </div>
+  </div>
+
+  <script>
+    const GEMINI_API_KEY = "TU_LLAVE_GEMINI_AQUI";
+    const GROQ_API_KEY   = "TU_LLAVE_GROQ_AQUI";
+    const JARVIS_SYSTEM_PROMPT = `Eres J.A.R.V.I.S., la IA de Tony Stark. Dirígete al usuario como "señor". Sé refinado, culto, técnico, conciso y con humor seco británico.`;
+
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    const material = new THREE.MeshBasicMaterial({ color: 0x00f3ff, wireframe: true });
+    let currentMesh = null;
+
+    const geometries = [
+      new THREE.IcosahedronGeometry(1.8, 1),
+      new THREE.TorusGeometry(1.4, 0.35, 16, 40),
+      new THREE.BoxGeometry(1.8, 1.8, 1.8),
+      new THREE.SphereGeometry(1.6, 18, 18),
+      new THREE.CylinderGeometry(1, 1, 2.2, 16),
+      new THREE.TorusKnotGeometry(1.1, 0.25, 50, 12),
+      new THREE.DodecahedronGeometry(1.6, 0),
+      new THREE.RingGeometry(0.7, 1.8, 24),
+      new THREE.ConeGeometry(1.5, 2.2, 4),
+      new THREE.OctahedronGeometry(1.8, 0),
+      new THREE.SphereGeometry(1.8, 10, 10)
+    ];
+
+    function changeModel(index) {
+      if (currentMesh) scene.remove(currentMesh);
+      const selectedGeo = geometries[index] || geometries[0];
+      if (parseInt(index) === 10) {
+        currentMesh = new THREE.Points(selectedGeo, new THREE.PointsMaterial({ color: 0x00f3ff, size: 0.08 }));
+      } else {
+        currentMesh = new THREE.Mesh(selectedGeo, material);
+      }
+      scene.add(currentMesh);
+      document.getElementById('model-select').value = index;
+    }
+
+    changeModel(0);
+    camera.position.z = 5;
+
+    let initialPinchDist = null;
+    container.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 2) {
+        initialPinchDist = Math.hypot(
+          e.touches[0].pageX - e.touches[1].pageX,
+          e.touches[0].pageY - e.touches[1].pageY
+        );
+      }
+    }, { passive: true });
+
+    container.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 2 && initialPinchDist) {
+        const currentDist = Math.hypot(
+          e.touches[0].pageX - e.touches[1].pageX,
+          e.touches[0].pageY - e.touches[1].pageY
+        );
+        const diff = initialPinchDist - currentDist;
+        camera.position.z = Math.min(Math.max(camera.position.z + diff * 0.01, 2), 12);
+        initialPinchDist = currentDist;
+      }
+    }, { passive: true });
+
+    container.addEventListener('touchend', () => { initialPinchDist = null; });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      if (currentMesh) {
+        currentMesh.rotation.x += 0.005;
+        currentMesh.rotation.y += 0.008;
+      }
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+
+    function spk(text) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'es-ES'; u.pitch = 0.75; u.rate = 0.95;
+        window.speechSynthesis.speak(u);
+      }
+    }
+
+    function logMsg(msg, sender) {
+      const log = document.getElementById('chat-log');
+      const div = document.createElement('div');
+      div.className = `msg ${sender}`;
+      div.innerText = msg;
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    async function sendMsg() {
+      const input = document.getElementById('user-input');
+      const query = input.value.trim();
+      if (!query) return;
+
+      logMsg(query, 'user');
+      input.value = '';
+
+      if (parseModelCommand(query)) return;
+
+      try {
+        const reply = await queryAI(query);
+        logMsg(reply, 'jarvis');
+        spk(reply);
+      } catch (err) {
+        logMsg("Señor, hubo un error de respuesta con las APIs configuradas.", 'jarvis');
+      }
+    }
+
+    function parseModelCommand(text) {
+      const lower = text.toLowerCase();
+      if (lower.includes("cambia") || lower.includes("modelo") || lower.includes("holograma")) {
+        if (lower.includes("reactor")) { changeModel(1); respondChange("Reactor Arc"); return true; }
+        if (lower.includes("cubo")) { changeModel(2); respondChange("Cubo Tesseract"); return true; }
+        if (lower.includes("esfera")) { changeModel(3); respondChange("Esfera Geodésica"); return true; }
+        if (lower.includes("cilindro")) { changeModel(4); respondChange("Cilindro de Núcleo"); return true; }
+        if (lower.includes("nudo")) { changeModel(5); respondChange("Nudo Toroidal"); return true; }
+        if (lower.includes("dodecaedro")) { changeModel(6); respondChange("Dodecaedro"); return true; }
+        if (lower.includes("anillo")) { changeModel(7); respondChange("Anillo Orbital"); return true; }
+        if (lower.includes("piramide")) { changeModel(8); respondChange("Pirámide Táctica"); return true; }
+        if (lower.includes("octaedro")) { changeModel(9); respondChange("Octaedro Cuántico"); return true; }
+        if (lower.includes("puntos")) { changeModel(10); respondChange("Matriz de Puntos"); return true; }
+        if (lower.includes("icosaedro")) { changeModel(0); respondChange("Icosaedro Base"); return true; }
+      }
+      return false;
+    }
+
+    function respondChange(name) {
+      const msg = `Proyectando ${name}, señor.`;
+      logMsg(msg, 'jarvis');
+      spk(msg);
+    }
+
+    async function queryAI(promptText) {
+      try {
+        document.getElementById('api-provider').innerText = "GEMINI 3.6-FLASH";
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: `${JARVIS_SYSTEM_PROMPT}\n\nUsuario: ${promptText}` }] }] })
+        });
+        const data = await res.json();
+        if (data.candidates && data.candidates[0].content.parts[0].text) {
+          return data.candidates[0].content.parts[0].text;
+        }
+        throw new Error("Fallo Gemini 3.6-flash");
+      } catch (e) {
+        document.getElementById('api-provider').innerText = "GROQ (GPT-120B)";
+        try {
+          const resGroq = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
+            body: JSON.stringify({
+              model: "openai/gpt-120b",
+              messages: [{ role: "system", content: JARVIS_SYSTEM_PROMPT }, { role: "user", content: promptText }]
+            })
+          });
+          const dataGroq = await resGroq.json();
+          if (dataGroq.choices && dataGroq.choices[0].message) {
+            return dataGroq.choices[0].message.content;
+          }
+          throw new Error("Fallo GPT-120B");
+        } catch (groqErr) {
+          document.getElementById('api-provider').innerText = "GROQ (GPT-20)";
+          const resGroq2 = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
+            body: JSON.stringify({
+              model: "openai/gpt-20",
+              messages: [{ role: "system", content: JARVIS_SYSTEM_PROMPT }, { role: "user", content: promptText }]
+            })
+          });
+          const dataGroq2 = await resGroq2.json();
+          return dataGroq2.choices[0].message.content;
+        }
+      }
+    }
+
+    let recognition;
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SpeechRec();
+      recognition.lang = 'es-ES';
+      recognition.onresult = (e) => {
+        document.getElementById('user-input').value = e.results[0][0].transcript;
+        sendMsg();
+      };
+    }
+
+    function toggleMic() {
+      if (recognition) recognition.start();
+      else alert("Voz no soportada.");
+    }
+  </script>
+</body>
+  </html>
