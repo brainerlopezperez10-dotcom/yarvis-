@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>STARK OS - MARK XIV</title>
+<style>
+:root{--c:#00f0ff;--bg:#010408;--r:#ff0055;}.veritas{--c:#ff0055!important;--r:#00f0ff!important;}
+*{box-sizing:border-box;margin:0;padding:0;user-select:none;}body{height:100vh;height:100dvh;background:var(--bg);color:var(--c);font-family:monospace;display:flex;flex-direction:column;overflow:hidden;}
+#intro-screen{position:fixed;inset:0;background:radial-gradient(circle at center,#001525 0%,#010408 100%);display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:1000;transition:opacity .8s,visibility .8s;}
+.stark-title{font-size:28px;font-weight:900;letter-spacing:6px;color:#fff;text-shadow:0 0 10px var(--c);animation:fP .8s forwards;}.jarvis-sub{font-size:16px;letter-spacing:12px;color:var(--r);margin-top:8px;text-shadow:0 0 8px var(--r);animation:fP 1s .3s forwards;opacity:0;}
+.hud-ring{position:absolute;width:220px;height:220px;border:2px dashed var(--c);border-radius:50%;animation:sp 4s linear infinite;opacity:.3;}
+@keyframes fP{0%{opacity:0;transform:scale(.95);}100%{opacity:1;transform:scale(1);}}@keyframes sp{100%{transform:rotate(360deg);}}.fade-out{opacity:0;visibility:hidden;}
+.hud{position:absolute;top:5px;left:5px;right:5px;display:flex;justify-content:space-between;align-items:center;background:rgba(0,20,40,.85);border:1px solid var(--c);padding:6px;z-index:20;font-size:10px;border-radius:4px;}
+.btn{background:rgba(0,240,255,.1);border:1px solid var(--c);color:var(--c);padding:3px 6px;border-radius:3px;cursor:pointer;font-weight:700;}
+#mv{width:100%;flex:1;position:relative;background:#010408;}#canv{width:100%;height:100%;}#gHud{position:absolute;bottom:10px;right:10px;width:120px;height:90px;border:1px solid var(--c);background:rgba(0,10,20,.85);display:none;z-index:15;border-radius:4px;}#gCanv{width:100%;height:100%;transform:scaleX(-1);}
+.chat{background:rgba(1,4,8,.95);border-top:1px solid rgba(0,240,255,.4);padding:8px;display:flex;flex-direction:column;gap:6px;height:280px;z-index:30;flex-shrink:0;transition:all .3s ease;}.chat.focus-mode{height:100vh!important;position:fixed;inset:0;z-index:500;}
+.msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px;font-size:11px;color:#fff;scroll-behavior:smooth;}
+.m{padding:5px 8px;border-radius:3px;max-width:90%;word-break:break-word;white-space:pre-wrap;}.u{align-self:flex-end;background:rgba(0,240,255,.15);border:1px solid var(--c);}.y{align-self:flex-start;background:rgba(255,0,85,.15);border:1px solid var(--r);color:var(--c);}
+.in{display:flex;gap:4px;height:40px;align-items:center;margin-top:2px;}input.usr{flex:1;height:100%;background:rgba(0,15,30,.9);border:1px solid var(--c);padding:0 8px;color:var(--c);outline:none;font-family:monospace;font-size:12px;border-radius:4px;}
+.sbtn{height:100%;background:rgba(0,240,255,.2);border:1px solid var(--c);color:var(--c);padding:0 12px;cursor:pointer;font-weight:bold;border-radius:4px;}.rec{background:var(--r)!important;color:#000!important;}
+.dl-btn{display:inline-block;margin-top:4px;padding:3px 6px;background:var(--c);color:#000;font-weight:bold;border-radius:3px;text-decoration:none;font-size:10px;}#devPanel,#vC{display:none;}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+</head>
+<body>
+<div id="intro-screen"><div class="hud-ring"></div><div class="stark-title">STARK INDUSTRIES</div><div class="jarvis-sub">J.A.R.V.I.S</div></div>
+<div class="hud"><b>STARK XIV</b><div><button class="btn" onclick="tFocus()">🔍 Focus</button><button class="btn" onclick="tMode()">🎨 HUD</button><button class="btn" onclick="tRot()">↷ Rot</button><button class="btn" id="bG" onclick="tG()">👋 Gestos</button><button class="btn" onclick="unlockDev()">⚙ Dev</button><span id="st">ONLINE ENGINE</span></div></div>
+<div id="mv"><div id="canv"></div><div id="gHud"><canvas id="gCanv" width="120" height="90"></canvas></div></div>
+<div class="chat" id="chatPanel">
+  <div style="font-size:9px;display:flex;justify-content:space-between;align-items:center;"><span id="sysState">● STARK OS ONLINE</span><div><button class="btn" style="font-size:8px;" onclick="exportChat()">💾 Exportar</button><button class="btn" style="font-size:8px;" onclick="clearChat()">🧹 Limpiar</button></div><span id="devPanel"><span id="kL">Key: 1/10</span> | <span id="mL">Mem: 0</span></span></div>
+  <div class="msgs" id="mB"><div class="m y"><b>J.A.R.V.I.S.:</b> ¡Hola! ¿En qué puedo ayudarte hoy? 😀</div></div>
+  <div class="in">
+    <input type="file" id="fileIn" style="display:none" accept=".pdf,image/*,.txt,.csv,.js" onchange="if(this.files[0])handleFileInput(this.files[0])">
+    <button class="btn" style="height:100%" title="Adjuntar Archivo" onclick="document.getElementById('fileIn').click()">📎</button>
+    <input type="text" id="uI" class="usr" placeholder="Escribe, pide un holograma o diagrama..." onkeypress="if(event.key==='Enter')processInput()">
+    <button class="btn" id="mB2" style="height:100%" onclick="tM()">🎤</button>
+    <button class="sbtn" onclick="processInput()">➔</button>
+  </div>
+</div>
+<video id="vC" playsinline></video>
+
+<script>
+window.addEventListener('DOMContentLoaded', ()=>{setTimeout(()=>{const i=document.getElementById('intro-screen');if(i)i.classList.add('fade-out');},1000);});
+if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+let isDev=false;
+function unlockDev(){if(isDev)return alert("Dev ya activo.");const p=prompt("Contraseña dev:");if(p==="051121"){isDev=true;document.getElementById("devPanel").style.display="inline";alert("Acceso concedido.");updHUD();}else if(p!==null)alert("Denegado.");}
+const P="AQ.Ab8RN6",K=[P+"J86VDKrwTmIADansE8HZ8hHTdtR3agXvnybhWS40MweA",P+"JE7kWCm9xOraVGO8XlTG45fnZo8QUUcicrtQVu-SONkQ",P+"JU-o7kLohAFO2dFcphWnpxdMsiep-QL5Al6gapH3Xz9w",P+"K6uv93LtIt_utdrr5kcZNapb2A8GJZRCmGcnQ9TC3K4w",P+"Jfy5hJK87miRXomO4TiCQ53ZIfAG3STzRpOXHep0yV0g",P+"KrL2RMHz8nmj1QSGuOtW8fWByY1G5_v2MIhI3Vo2P0XQ",P+"LCJsxzBL2Q2SVKlX7lOVAGfw1eAgoSACMMvGsFpJuPZw",P+"LnHjDboTvlKBDuRHu9a-lBTGqI78gPXyr4hdcwNDu4-w",P+"IMrGaCCO74t9rw9qQYoZHXE8r4WKh0YSQU6SPYHbuZlA",P+"JYdfo-m0dh35TE2QcfvXA3S1zFT5VO0xFtuA3ZXHmQmQ"],GK="gsk_RI72Aul7g9fKh9C"+"tjKgoWGdyb3FY1N1MTVUBCUAKgYOmCzKXRlBU";
+let kI=0,gF=0,chatHist=[],currentMode="normal";
+const mem=new Map(JSON.parse(localStorage.getItem('j_m')||'[]')),sMem=()=>localStorage.setItem('j_m',JSON.stringify([...mem]));
+const hMem=new Map(JSON.parse(localStorage.getItem('j_hm')||'[]')),sHMem=()=>localStorage.setItem('j_hm',JSON.stringify([...hMem]));
+const cQ=t=>t.toLowerCase().trim().replace(/[¿?¡!.,]/g,"");
+function updHUD(m="Gemini"){document.getElementById("kL").innerText=`Key: (${kI+1}/10)`;document.getElementById("mL").innerText=`Mem: ${mem.size+hMem.size}`;}
+const SYSTEM_PROMPT=`Eres J.A.R.V.I.S., la IA de Tony Stark. Responde preciso en el idioma del usuario.
+Si piden holograma/figura 3D, genera 50-100 puntos 3D al final: [HOLOGRAM_3D: {"type":"points","vertices":[[x,y,z],...]}]
+Si piden esquema/diagrama, usa formato mapa mental estructurado.
+Si generas código/documento descargable: [FILE_FILE: {"name":"archivo.txt","content":"..."}]
+Si hay JS ejecutable: [EXEC_JS: código].`;
+
+async function fGroq(p,m="openai/gpt-oss-120b"){updHUD("Groq");try{const r=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${GK}`},body:JSON.stringify({model:m,messages:[{role:"system",content:SYSTEM_PROMPT},...chatHist.slice(-6),{role:"user",content:p}]})}),d=await r.json();if(r.ok&&d.choices?.[0]?.message?.content){const txt=d.choices[0].message.content;chatHist.push({role:"user",content:p},{role:"assistant",content:txt});mem.set(cQ(p),txt);sMem();return txt;}return m.includes("120b")?await fGroq(p,"openai/gpt-oss-20b"):"Sin respuesta.";}catch(e){return "Error de red.";}}
+async function fAI(p,imgBase64=null){const q=cQ(p);if(!imgBase64&&mem.has(q))return mem.get(q);if(gF>=K.length)return await fGroq(p);const k=K[kI];kI=(kI+1)%K.length;updHUD("Gemini");const pts=[{text:SYSTEM_PROMPT+"\n\nHistorial:\n"+chatHist.slice(-4).map(c=>`${c.role}: ${c.content}`).join("\n")+"\n\nUsuario: "+p}];if(imgBase64)pts.push({inline_data:{mime_type:"image/jpeg",data:imgBase64}});try{const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(k)}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:pts}]})}),d=await r.json();if(r.ok&&d.candidates?.[0]?.content?.parts?.[0]?.text){gF=0;const txt=d.candidates[0].content.parts[0].text;chatHist.push({role:"user",content:p},{role:"assistant",content:txt});if(!imgBase64){mem.set(q,txt);sMem();}return txt;}gF++;return await fAI(p,imgBase64);}catch(e){gF++;return await fGroq(p);}}
+
+function tFocus(){document.getElementById("chatPanel").classList.toggle("focus-mode");}
+function tMode(){currentMode=currentMode==="normal"?"veritas":"normal";document.body.classList.toggle("veritas",currentMode==="veritas");aM(currentMode==="veritas"?"Protocolo Véritas activado.":"Protocolo Estándar restaurado.","y");}
+function exportChat(){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(chatHist,null,2)],{type:"application/json"}));a.download="JARVIS_Chat.json";a.click();}
+function clearChat(){chatHist=[];document.getElementById("mB").innerHTML=`<div class="m y"><b>J.A.R.V.I.S.:</b> ¡Hola! ¿En qué puedo ayudarte hoy? 😀</div>`;}
+function setReminder(t,s){aM(`Recordatorio: "${t}" en ${s}s.`,"y");spk(`Recordatorio configurado`);setTimeout(()=>{aM(`🚨 **RECORDATORIO**: ${t}`,"y");spk(`Atención, recordatorio: ${t}`);},s*1000);}
+
+function renderDynamicHologram(v,title="HOLOGRAMA IA"){if(obj)sc.remove(obj);const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(v.flat()),3));obj=new THREE.Points(g,new THREE.PointsMaterial({color:currentMode==="veritas"?0xff0055:0x00f0ff,size:0.05,transparent:true,opacity:0.95}));sc.add(obj);document.getElementById("st").innerText=title.toUpperCase();}
+function buildMathHologram(t){const p=[];if(t==='edificio'||t==='rascacielos'){for(let x=-0.8;x<=0.8;x+=0.2)for(let z=-0.8;z<=0.8;z+=0.2)p.push(x,-1.5,z);for(let i=0;i<18;i++){const y=-1.5+(i*0.15),e=0.8*(1-(i/18)*0.4);for(let a=0;a<Math.PI*2;a+=Math.PI/8)p.push(Math.cos(a)*e,y,Math.sin(a)*e);}}else{for(let i=0;i<1000;i++){const u=Math.random()*Math.PI*2,v=Math.random()*Math.PI*2;p.push((1.2+0.4*Math.cos(v))*Math.cos(u),(1.2+0.4*Math.cos(v))*Math.sin(u),0.4*Math.sin(v));}}renderDynamicHologram(p,t);}
+
+async function extractTextFromPDF(f){const p=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;let t='';for(let i=1;i<=p.numPages;i++){t+=(await (await p.getPage(i)).getTextContent()).items.map(x=>x.str).join(' ')+'\n';}return t;}
+async function handleFileInput(f){aM(`Procesando: ${f.name}...`,"u");try{if(f.type.startsWith("image/")){const r=new FileReader();r.onload=async()=>{const res=await fAI("Extrae todo el texto visible (OCR) y resume esta imagen.",r.result.split(',')[1]);aM(res,"y");spk(res);};r.readAsDataURL(f);}else{let c=f.type==="application/pdf"?await extractTextFromPDF(f):await f.text();const res=await fAI(`Analiza y resume:\n${c.slice(0,3500)}`);aM(res,"y");spk(res);}}catch(e){aM("Error en archivo.","y");}}
+async function processInput(){const e=document.getElementById("uI"),t=e.value.trim();if(!t)return;e.value="";sM(t);}
+
+let rec,isR=0;
+function initV(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(SR){rec=new SR();rec.lang='es-ES';rec.onresult=e=>sM(e.results[e.results.length-1][0].transcript);rec.onend=()=>{if(isR)rec.start();else document.getElementById("mB2").classList.remove("rec");};}}
+const tM=()=>!rec?alert("No soportado"):(isR?(isR=0,rec.stop()):(rec.start(),isR=1,document.getElementById("mB2").classList.add("rec")));
+function spk(t){if('speechSynthesis'in window){window.speechSynthesis.cancel();const c=t.replace(/<[^>]*>?/gm,''),u=new SpeechSynthesisUtterance(c);u.lang=/[a-zA-Z]/.test(c)&&!/[áéíóúñ]/i.test(c)?'en-US':'es-ES';u.pitch=0.85;window.speechSynthesis.speak(u);}}
+
+async function sM(txt){aM(txt,"u");const l=txt.toLowerCase(),qKey=cQ(txt);if(l.includes("recordar")||l.includes("recuérdame")||l.includes("alarma")){const m=l.match(/(?:in|en)\s+(\d+)\s+(segundo|segundos|minuto|minutos)/);if(m){let s=parseInt(m[1]);if(m[2].startsWith("minuto"))s*=60;setReminder(txt.replace(/recordar|recuérdame|alarma|en\s+\d+\s+\w+/gi,"").trim()||"Tarea",s);return;}}if(l.includes("edificio")||l.includes("rascacielos")){buildMathHologram("edificio");aM("Estructura proyectada.","y");spk("Edificio listo.");return;}if(hMem.has(qKey)){const d=hMem.get(qKey);renderDynamicHologram(d.vertices,d.title||"MEMORIA 3D");aM(d.text,"y");spk(d.text);return;}let out=await fAI(txt);if(out.includes("[HOLOGRAM_3D:")){const m=out.match(/\[HOLOGRAM_3D:\s*({.*?})\]/s);if(m){try{const h=JSON.parse(m[1]);if(h.vertices){const c=out.replace(/\[HOLOGRAM_3D:.*?\]/s,"").trim();renderDynamicHologram(h.vertices,"HOLO IA");hMem.set(qKey,{vertices:h.vertices,text:c,title:"HOLO IA"});sHMem();updHUD();}}catch(e){}out=out.replace(/\[HOLOGRAM_3D:.*?\]/s,"").trim();}}if(out.includes("[FILE_FILE:")){const m=out.match(/\[FILE_FILE:\s*({.*?})\]/s);if(m){try{const f=JSON.parse(m[1]),u=URL.createObjectURL(new Blob([f.content],{type:"text/plain"}));out=out.replace(/\[FILE_FILE:.*?\]/s,"").trim()+`<br><a href="${u}" download="${f.name}" class="dl-btn">💾 Descargar ${f.name}</a>`;}catch(e){}}}if(out.includes("[EXEC_JS:")){const m=out.match(/\[EXEC_JS:\s*(.*?)\]/s);if(m){try{eval(m[1]);}catch(e){}out=out.replace(/\[EXEC_JS:.*?\]/s,"").trim();}}aM(out,"y");spk(out);}
+function aM(m,s){const b=document.getElementById("mB");b.innerHTML+=`<div class="m ${s}"><b>${s==="u"?"TÚ":"J.A.R.V.I.S."}:</b> ${m}</div>`;b.scrollTop=b.scrollHeight;}
+
+let sc,cam,rend,ctrl,obj,pParts,isH=0,clk=new THREE.Clock(),gAct=false,tCamZ=5.5,hands,mpCam;
+const cb=document.getElementById("canv");
+function init(){sc=new THREE.Scene();cam=new THREE.PerspectiveCamera(60,cb.clientWidth/cb.clientHeight,0.1,100);cam.position.z=5.5;rend=new THREE.WebGLRenderer({antialias:true,alpha:true});rend.setSize(cb.clientWidth,cb.clientHeight);rend.setPixelRatio(Math.min(window.devicePixelRatio,2));cb.appendChild(rend.domElement);ctrl=new THREE.OrbitControls(cam,rend.domElement);ctrl.enableDamping=true;const pG=new THREE.BufferGeometry(),pos=new Float32Array(300);for(let i=0;i<300;i++)pos[i]=(Math.random()-0.5)*10;pG.setAttribute('position',new THREE.BufferAttribute(pos,3));pParts=new THREE.Points(pG,new THREE.PointsMaterial({size:0.02,color:0x00f0ff,transparent:true,opacity:0.4}));sc.add(pParts);buildMathHologram("edificio");anim();initV();updHUD();}
+const tRot=()=>{isH=!isH;if(obj)obj.rotation.x=isH?Math.PI/2:0;};
+async function tG(){const b=document.getElementById("bG"),g=document.getElementById("gHud");if(!gAct){try{hands=new Hands({locateFile:(f)=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});hands.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:0.65,minTrackingConfidence:0.65});hands.onResults(onHandResults);const v=document.getElementById("vC");mpCam=new Camera(v,{onFrame:async()=>{await hands.send({image:v});},width:320,height:240});await mpCam.start();gAct=true;b.style.background="rgba(0,240,255,0.5)";g.style.display="block";}catch(e){alert("Error cámara.");}}else{if(mpCam)mpCam.stop();gAct=false;b.style.background="";g.style.display="none";}}
+function onHandResults(r){const gC=document.getElementById("gCanv"),ctx=gC.getContext("2d");ctx.clearRect(0,0,gC.width,gC.height);if(!r.multiHandLandmarks||!r.multiHandLandmarks.length)return;const lm=r.multiHandLandmarks[0];ctx.strokeStyle="#00f0ff";ctx.fillStyle="#ff0055";ctx.lineWidth=1.5;[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]].forEach(([i,j])=>{ctx.beginPath();ctx.moveTo(lm[i].x*gC.width,lm[i].y*gC.height);ctx.lineTo(lm[j].x*gC.width,lm[j].y*gC.height);ctx.stroke();});if(obj){obj.rotation.y=(1.0-lm[0].x-0.5)*Math.PI*3;obj.rotation.x=(lm[0].y-0.5)*Math.PI*2;}}
+function anim(){requestAnimationFrame(anim);const t=clk.getElapsedTime();if(ctrl)ctrl.update();cam.position.z+=(tCamZ-cam.position.z)*0.1;if(pParts)pParts.rotation.y=t*0.05;if(obj&&!gAct)obj.rotation.y+=0.008;rend.render(sc,cam);}
+window.onresize=()=>{cam.aspect=cb.clientWidth/cb.clientHeight;cam.updateProjectionMatrix();rend.setSize(cb.clientWidth,cb.clientHeight);};window.onload=init;
+</script>
+</body>
+</html>
