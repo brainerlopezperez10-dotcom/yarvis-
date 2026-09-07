@@ -1,0 +1,1 @@
+async function analyzeImage(f){return new Promise((res,rej)=>{let r=new FileReader;r.onload=async()=>{try{let x=await fAI("Analiza detalladamente esta imagen. Describe lo importante, texto visible, objetos y posibles datos útiles.",r.result.split(",")[1]);res(x)}catch(e){rej(e)}};r.readAsDataURL(f)})}
