@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>STARK OS - MARK XII (HOLOGRAM MEMORY)</title>
+<style>
+:root{--c:#00f0ff;--bg:#010408;--r:#ff0055;}
+*{box-sizing:border-box;margin:0;padding:0;user-select:none;}
+body{height:100vh;height:100dvh;background:var(--bg);color:var(--c);font-family:monospace;display:flex;flex-direction:column;overflow:hidden;}
+
+#intro-screen{
+  position:fixed;inset:0;background:radial-gradient(circle at center, #001525 0%, #010408 100%);
+  display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:1000;
+  transition:opacity 0.8s ease-out, visibility 0.8s;
+}
+.stark-title{font-size:28px;font-weight:900;letter-spacing:6px;color:#fff;text-shadow:0 0 10px var(--c),0 0 20px var(--c);animation:fadeInPulse 0.8s ease-in-out forwards;opacity:0;}
+.jarvis-sub{font-size:16px;letter-spacing:12px;color:var(--r);margin-top:8px;text-shadow:0 0 8px var(--r);animation:fadeInPulse 1s ease-in-out 0.3s forwards;opacity:0;}
+.hud-ring{position:absolute;width:220px;height:220px;border:2px dashed var(--c);border-radius:50%;animation:spin 4s linear infinite;opacity:0.3;}
+@keyframes fadeInPulse{0%{opacity:0;transform:scale(0.95);}50%{opacity:0.8;}100%{opacity:1;transform:scale(1);}}
+@keyframes spin{100%{transform:rotate(360deg);}}
+.fade-out{opacity:0;visibility:hidden;}
+
+.hud{position:absolute;top:5px;left:5px;right:5px;display:flex;justify-content:space-between;align-items:center;background:rgba(0,20,40,.85);border:1px solid var(--c);padding:6px;z-index:20;font-size:10px;border-radius:4px;}
+.btn{background:rgba(0,240,255,.1);border:1px solid var(--c);color:var(--c);padding:3px 6px;border-radius:3px;cursor:pointer;font-weight:700;}
+#mv{width:100%;flex:1;position:relative;background:#010408;}
+#canv{width:100%;height:100%;}
+#gHud{position:absolute;bottom:10px;right:10px;width:120px;height:90px;border:1px solid var(--c);background:rgba(0,10,20,.85);display:none;z-index:15;border-radius:4px;}
+#gCanv{width:100%;height:100%;transform:scaleX(-1);}
+
+.chat{background:rgba(1,4,8,.95);border-top:1px solid rgba(0,240,255,.4);padding:8px;display:flex;flex-direction:column;gap:6px;height:280px;z-index:30;flex-shrink:0;}
+.msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px;font-size:11px;color:#fff;scroll-behavior:smooth;}
+.m{padding:5px 8px;border-radius:3px;max-width:90%;word-break:break-word;}
+.u{align-self:flex-end;background:rgba(0,240,255,.15);border:1px solid var(--c);}
+.y{align-self:flex-start;background:rgba(255,0,85,.15);border:1px solid var(--r);color:var(--c);}
+.in{display:flex;gap:4px;height:40px;align-items:center;margin-top:2px;}
+input.usr{flex:1;height:100%;background:rgba(0,15,30,.9);border:1px solid var(--c);padding:0 8px;color:var(--c);outline:none;font-family:monospace;font-size:12px;border-radius:4px;}
+.sbtn{height:100%;background:rgba(0,240,255,.2);border:1px solid var(--c);color:var(--c);padding:0 12px;cursor:pointer;font-weight:bold;border-radius:4px;}
+.rec{background:var(--r)!important;color:#000!important;}
+#vC{display:none;}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+</head>
+<body>
+
+<div id="intro-screen">
+  <div class="hud-ring"></div>
+  <div class="stark-title">STARK INDUSTRIES</div>
+  <div class="jarvis-sub">J.A.R.V.I.S</div>
+</div>
+
+<div class="hud">
+  <b>STARK OS XII</b>
+  <div>
+    <button class="btn" onclick="tRot()">↷ Rot</button>
+    <button class="btn" id="bG" onclick="tG()">👋 Gestos</button>
+    <span id="st">ONLINE ENGINE</span>
+  </div>
+</div>
+
+<div id="mv">
+  <div id="canv"></div>
+  <div id="gHud"><canvas id="gCanv" width="120" height="90"></canvas></div>
+</div>
+
+<div class="chat">
+  <div style="font-size:9px;display:flex;justify-content:space-between;">
+    <span id="kL">● Gemini Online</span>
+    <span id="gstState">GESTO: OFF</span>
+    <span id="mL">💾 Memoria Activa</span>
+  </div>
+  <div class="msgs" id="mB">
+    <div class="m y"><b>J.A.R.V.I.S.:</b> Sistema en línea. Hologramas generados por IA se guardarán automáticamente en memoria local.</div>
+  </div>
+  <div class="in">
+    <input type="file" id="fileIn" style="display:none" accept=".pdf,image/*,.txt" onchange="if(this.files[0]) handleFileInput(this.files[0])">
+    <button class="btn" style="height:100%" title="Adjuntar PDF o Imagen" onclick="document.getElementById('fileIn').click()">📎</button>
+    <input type="text" id="uI" class="usr" placeholder="Haz una pregunta, pega un Link o pide un holograma..." onkeypress="if(event.key==='Enter') processInput()">
+    <button class="btn" id="mB2" style="height:100%" onclick="tM()">🎤</button>
+    <button class="sbtn" onclick="processInput()">➔</button>
+  </div>
+</div>
+
+<video id="vC" playsinline></video>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    const intro = document.getElementById('intro-screen');
+    if (intro) intro.classList.add('fade-out');
+  }, 1000);
+});
+
+if (window.pdfjsLib) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+}
+
+/* --- CLAVES API, MEMORIA LOCAL Y RED --- */
+const P="AQ.Ab8RN6";
+const K=[P+"J86VDKrwTmIADansE8HZ8hHTdtR3agXvnybhWS40MweA",P+"JE7kWCm9xOraVGO8XlTG45fnZo8QUUcicrtQVu-SONkQ",P+"JU-o7kLohAFO2dFcphWnpxdMsiep-QL5Al6gapH3Xz9w",P+"K6uv93LtIt_utdrr5kcZNapb2A8GJZRCmGcnQ9TC3K4w",P+"Jfy5hJK87miRXomO4TiCQ53ZIfAG3STzRpOXHep0yV0g",P+"KrL2RMHz8nmj1QSGuOtW8fWByY1G5_v2MIhI3Vo2P0XQ",P+"LCJsxzBL2Q2SVKlX7lOVAGfw1eAgoSACMMvGsFpJuPZw",P+"LnHjDboTvlKBDuRHu9a-lBTGqI78gPXyr4hdcwNDu4-w",P+"IMrGaCCO74t9rw9qQYoZHXE8r4WKh0YSQU6SPYHbuZlA",P+"JYdfo-m0dh35TE2QcfvXA3S1zFT5VO0xFtuA3ZXHmQmQ"];
+const GK="gsk_RI72Aul7g9fKh9C"+"tjKgoWGdyb3FY1N1MTVUBCUAKgYOmCzKXRlBU";
+let kI=0,gF=0;
+
+// Memoria General y Memoria Holográfica persistente
+const mem=new Map(JSON.parse(localStorage.getItem('j_m')||'[]')),sMem=()=>localStorage.setItem('j_m',JSON.stringify([...mem]));
+const hMem=new Map(JSON.parse(localStorage.getItem('j_hm')||'[]')),sHMem=()=>localStorage.setItem('j_hm',JSON.stringify([...hMem]));
+const cQ=t=>t.toLowerCase().trim().replace(/[¿?¡!.,]/g,"");
+
+function updHUD(m="Gemini"){
+  document.getElementById("kL").innerText=m.startsWith("Groq")?`🚀 ${m}`:`● Gemini (${kI+1}/10)`;
+  document.getElementById("mL").innerText=`💾 ${mem.size + hMem.size}`;
+}
+
+const SYSTEM_PROMPT = `Eres J.A.R.V.I.S., la IA avanzada de Tony Stark. Responde a las preguntas del usuario de forma elegante, precisa y ejecutiva.
+SI el usuario te pide explícitamente dibujar o mostrar un objeto 3D o holograma que no sea estándar, incluye al final de tu respuesta el bloque de coordenadas:
+[HOLOGRAM_3D: {"type":"points","vertices":[[x1,y1,z1],[x2,y2,z2],...]}]`;
+
+async function fGroq(p,m="openai/gpt-oss-120b"){
+  updHUD(`Groq (${m.split('/')[1]})`);
+  try{
+    const r=await fetch("https://api.groq.com/openai/v1/chat/completions",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":`Bearer ${GK}`},
+      body:JSON.stringify({model:m,messages:[{role:"system",content:SYSTEM_PROMPT},{role:"user",content:p}]})
+    });
+    const d=await r.json();
+    if(r.ok&&d.choices?.[0]?.message?.content){
+      const txt=d.choices[0].message.content;
+      mem.set(cQ(p),txt);sMem();return txt;
+    }
+    return m.includes("120b")?await fGroq(p,"openai/gpt-oss-20b"):"Sin respuesta.";
+  }catch(e){return "Error de red al consultar la API.";}
+}
+
+async function fAI(p){
+  const q=cQ(p);if(mem.has(q))return mem.get(q);if(gF>=K.length)return await fGroq(p);
+  const k=K[kI];kI=(kI+1)%K.length;updHUD("Gemini");
+  try{
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(k)}`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({contents:[{parts:[{text:SYSTEM_PROMPT+"\n\nUsuario: "+p}]}]})
+    });
+    const d=await r.json();
+    if(r.ok&&d.candidates?.[0]?.content?.parts?.[0]?.text){
+      gF=0;const txt=d.candidates[0].content.parts[0].text;
+      mem.set(q,txt);sMem();return txt;
+    }
+    gF++;return await fAI(p);
+  }catch(e){gF++;return await fGroq(p);}
+}
+
+/* --- RENDERIZADOR Y MEMORIA HOLOGRÁFICA 3D --- */
+function renderDynamicHologram(verticesArray, title="HOLOGRAMA IA"){
+  if(obj) sc.remove(obj);
+  const geometry = new THREE.BufferGeometry();
+  const positions = new Float32Array(verticesArray.flat());
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const material = new THREE.PointsMaterial({color: 0x00f0ff, size: 0.05, transparent: true, opacity: 0.95});
+  obj = new THREE.Points(geometry, material);
+  sc.add(obj);
+  document.getElementById("st").innerText = title.toUpperCase();
+}
+
+function buildMathHologram(type) {
+  const points = [];
+  if (type === 'edificio' || type === 'rascacielos') {
+    for (let x = -0.8; x <= 0.8; x += 0.2) { for (let z = -0.8; z <= 0.8; z += 0.2) points.push(x, -1.5, z); }
+    for (let i = 0; i < 18; i++) {
+      const y = -1.5 + (i * 0.15), escala = 0.8 * (1 - (i / 18) * 0.4);
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / 8) points.push(Math.cos(a) * escala, y, Math.sin(a) * escala);
+    }
+  } else {
+    for (let i = 0; i < 1000; i++) {
+      const u = Math.random() * Math.PI * 2, v = Math.random() * Math.PI * 2;
+      points.push((1.2 + 0.4 * Math.cos(v)) * Math.cos(u), (1.2 + 0.4 * Math.cos(v)) * Math.sin(u), 0.4 * Math.sin(v));
+    }
+  }
+  renderDynamicHologram(points, type);
+}
+
+/* --- LECTOR DE ARCHIVOS PDF Y LINKS --- */
+async function extractTextFromPDF(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let text = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(item => item.str).join(' ') + '\n';
+  }
+  return text;
+}
+
+async function handleFileInput(file) {
+  aM(`Procesando archivo: ${file.name}...`, "u");
+  try {
+    let content = "";
+    if (file.type === "application/pdf") {
+      content = await extractTextFromPDF(file);
+    } else {
+      content = `[Archivo: ${file.name}, ${(file.size/1024).toFixed(1)} KB]`;
+    }
+    const prompt = `Resumen ejecutivo del siguiente documento:\n${content.slice(0, 3500)}`;
+    const res = await fAI(prompt);
+    aM(res, "y"); spk(res);
+  } catch(e) { aM("Error al leer el archivo adjunto.", "y"); }
+}
+
+async function processInput() {
+  const el = document.getElementById("uI");
+  const txt = el.value.trim();
+  if (!txt) return;
+  el.value = "";
+
+  if (txt.startsWith("http://") || txt.startsWith("https://")) {
+    aM(`Analizando enlace: ${txt}`, "u");
+    const prompt = `Analiza y sintetiza el contenido de esta URL o video: ${txt}`;
+    const res = await fAI(prompt);
+    aM(res, "y"); spk(res);
+  } else {
+    sM(txt);
+  }
+}
+
+/* --- RECONOCIMIENTO Y CHAT GENERAL --- */
+let rec, isR = 0;
+function initV() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SR) {
+    rec = new SR(); rec.lang = 'es-ES';
+    rec.onresult = e => sM(e.results[0][0].transcript);
+    rec.onend = () => { isR = 0; document.getElementById("mB2").classList.remove("rec"); };
+  }
+}
+const tM = () => !rec ? alert("No soportado") : (isR ? rec.stop() : (rec.start(), isR = 1, document.getElementById("mB2").classList.add("rec")));
+function spk(t) { if ('speechSynthesis' in window) { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.lang = 'es-ES'; u.pitch = 0.85; window.speechSynthesis.speak(u); } }
+
+async function sM(txt) {
+  aM(txt, "u"); const l = txt.toLowerCase(), qKey = cQ(txt);
+
+  // 1. Revisar atajos matemáticos locales
+  if (l.includes("edificio") || l.includes("rascacielos")) { buildMathHologram("edificio"); aM("Estructura proyectada.", "y"); spk("Edificio listo."); return; }
+
+  // 2. Revisar si el holograma ya fue guardado en la Memoria Holográfica (j_hm)
+  if (hMem.has(qKey)) {
+    const cachedData = hMem.get(qKey);
+    renderDynamicHologram(cachedData.vertices, cachedData.title || "MEMORIA 3D");
+    aM(cachedData.text, "y"); spk(cachedData.text);
+    return;
+  }
+
+  // 3. Consultar a Gemini/Groq si no está en la memoria
+  let out = await fAI(txt);
+
+  if (out.includes("[HOLOGRAM_3D:")) {
+    const match = out.match(/\[HOLOGRAM_3D:\s*({.*?})\]/s);
+    if (match) {
+      try {
+        const holoData = JSON.parse(match[1]);
+        if (holoData.vertices) {
+          const cleanText = out.replace(/\[HOLOGRAM_3D:.*?\]/s, "").trim();
+          renderDynamicHologram(holoData.vertices, "HOLO IA");
+          // Guardar en la Memoria Holográfica local
+          hMem.set(qKey, { vertices: holoData.vertices, text: cleanText, title: "HOLO IA" });
+          sHMem();
+          updHUD();
+        }
+      } catch(e){}
+      out = out.replace(/\[HOLOGRAM_3D:.*?\]/s, "").trim();
+    }
+  }
+
+  aM(out, "y"); spk(out);
+}
+
+function aM(m, s) { const b = document.getElementById("mB"); b.innerHTML += `<div class="m ${s}"><b>${s === "u" ? "TÚ" : "J.A.R.V.I.S."}:</b> ${m}</div>`; b.scrollTop = b.scrollHeight; }
+
+/* --- ENGINE THREE.JS & MEDIAPIPE --- */
+let sc, cam, rend, ctrl, obj, pParts, isH = 0, clk = new THREE.Clock(), gAct = false, tCamZ = 5.5, autoRotate = true;
+const cb = document.getElementById("canv");
+
+function init() {
+  sc = new THREE.Scene(); cam = new THREE.PerspectiveCamera(60, cb.clientWidth / cb.clientHeight, 0.1, 100); cam.position.z = 5.5;
+  rend = new THREE.WebGLRenderer({ antialias: true, alpha: true }); rend.setSize(cb.clientWidth, cb.clientHeight); rend.setPixelRatio(Math.min(window.devicePixelRatio, 2)); cb.appendChild(rend.domElement);
+  ctrl = new THREE.OrbitControls(cam, rend.domElement); ctrl.enableDamping = true;
+
+  const pG = new THREE.BufferGeometry(), pos = new Float32Array(300); for (let i = 0; i < 300; i++) pos[i] = (Math.random() - 0.5) * 10;
+  pG.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  pParts = new THREE.Points(pG, new THREE.PointsMaterial({ size: 0.02, color: 0x00f0ff, transparent: true, opacity: 0.4 })); sc.add(pParts);
+
+  buildMathHologram("edificio"); anim(); initV(); updHUD();
+}
+
+const tRot = () => { isH = !isH; if (obj) obj.rotation.x = isH ? Math.PI / 2 : 0; };
+
+let hands, mpCam;
+async function tG() {
+  const b = document.getElementById("bG"), gHud = document.getElementById("gHud");
+  if (!gAct) {
+    try {
+      hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+      hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.65, minTrackingConfidence: 0.65 });
+      hands.onResults(onHandResults);
+      const videoElement = document.getElementById("vC");
+      mpCam = new Camera(videoElement, { onFrame: async () => { await hands.send({ image: videoElement }); }, width: 320, height: 240 });
+      await mpCam.start();
+      gAct = true; b.style.background = "rgba(0,240,255,0.5)"; gHud.style.display = "block";
+    } catch (e) { alert("Error al iniciar cámara."); }
+  } else {
+    if (mpCam) mpCam.stop();
+    gAct = false; b.style.background = ""; gHud.style.display = "none";
+  }
+}
+
+function onHandResults(results) {
+  const gCanv = document.getElementById("gCanv"), ctx = gCanv.getContext("2d");
+  ctx.clearRect(0, 0, gCanv.width, gCanv.height);
+  if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) return;
+  const lm = results.multiHandLandmarks[0];
+  ctx.strokeStyle = "#00f0ff"; ctx.fillStyle = "#ff0055"; ctx.lineWidth = 1.5;
+  const connections = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+  connections.forEach(([i, j]) => { ctx.beginPath(); ctx.moveTo(lm[i].x * gCanv.width, lm[i].y * gCanv.height); ctx.lineTo(lm[j].x * gCanv.width, lm[j].y * gCanv.height); ctx.stroke(); });
+  if (obj) { obj.rotation.y = (1.0 - lm[0].x - 0.5) * Math.PI * 3; obj.rotation.x = (lm[0].y - 0.5) * Math.PI * 2; }
+}
+
+function anim() {
+  requestAnimationFrame(anim); const t = clk.getElapsedTime(); if (ctrl) ctrl.update();
+  cam.position.z += (tCamZ - cam.position.z) * 0.1;
+  if (pParts) pParts.rotation.y = t * 0.05;
+  if (obj && autoRotate && !gAct) obj.rotation.y += 0.008;
+  rend.render(sc, cam);
+}
+
+window.onresize = () => { cam.aspect = cb.clientWidth / cb.clientHeight; cam.updateProjectionMatrix(); rend.setSize(cb.clientWidth, cb.clientHeight); };
+window.onload = init;
+</script>
+</body>
+</html>
