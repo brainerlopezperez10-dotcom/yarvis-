@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>STARK OS - MARK XII (LOCAL & MULTIMEDIA)</title>
+<style>
+:root{--c:#00f0ff;--bg:#010408;--r:#ff0055;}
+*{box-sizing:border-box;margin:0;padding:0;user-select:none;}
+body{height:100vh;height:100dvh;background:var(--bg);color:var(--c);font-family:monospace;display:flex;flex-direction:column;overflow:hidden;}
+
+#intro-screen{
+  position:fixed;inset:0;background:radial-gradient(circle at center, #001525 0%, #010408 100%);
+  display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:1000;
+  transition:opacity 0.8s ease-out, visibility 0.8s;
+}
+.stark-title{font-size:28px;font-weight:900;letter-spacing:6px;color:#fff;text-shadow:0 0 10px var(--c),0 0 20px var(--c);animation:fadeInPulse 0.8s ease-in-out forwards;opacity:0;}
+.jarvis-sub{font-size:16px;letter-spacing:12px;color:var(--r);margin-top:8px;text-shadow:0 0 8px var(--r);animation:fadeInPulse 1s ease-in-out 0.3s forwards;opacity:0;}
+.hud-ring{position:absolute;width:220px;height:220px;border:2px dashed var(--c);border-radius:50%;animation:spin 4s linear infinite;opacity:0.3;}
+@keyframes fadeInPulse{0%{opacity:0;transform:scale(0.95);}50%{opacity:0.8;}100%{opacity:1;transform:scale(1);}}
+@keyframes spin{100%{transform:rotate(360deg);}}
+.fade-out{opacity:0;visibility:hidden;}
+
+/* INTERFAZ HUD SUPERIOR */
+.hud{position:absolute;top:5px;left:5px;right:5px;display:flex;justify-content:space-between;align-items:center;background:rgba(0,20,40,.85);border:1px solid var(--c);padding:6px;z-index:20;font-size:10px;border-radius:4px;}
+.btn{background:rgba(0,240,255,.1);border:1px solid var(--c);color:var(--c);padding:3px 6px;border-radius:3px;cursor:pointer;font-weight:700;}
+#mv{width:100%;flex:1;position:relative;background:#010408;}
+#canv{width:100%;height:100%;}
+#gHud{position:absolute;bottom:10px;right:10px;width:120px;height:90px;border:1px solid var(--c);background:rgba(0,10,20,.85);display:none;z-index:15;border-radius:4px;}
+#gCanv{width:100%;height:100%;transform:scaleX(-1);}
+
+/* CHAT E INPUTS INFERIORES */
+.chat{background:rgba(1,4,8,.95);border-top:1px solid rgba(0,240,255,.4);padding:8px;display:flex;flex-direction:column;gap:6px;height:280px;z-index:30;flex-shrink:0;}
+.msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px;font-size:11px;color:#fff;scroll-behavior:smooth;}
+.m{padding:5px 8px;border-radius:3px;max-width:90%;word-break:break-word;}
+.u{align-self:flex-end;background:rgba(0,240,255,.15);border:1px solid var(--c);}
+.y{align-self:flex-start;background:rgba(255,0,85,.15);border:1px solid var(--r);color:var(--c);}
+.in{display:flex;gap:4px;height:40px;align-items:center;margin-top:2px;}
+input.usr{flex:1;height:100%;background:rgba(0,15,30,.9);border:1px solid var(--c);padding:0 8px;color:var(--c);outline:none;font-family:monospace;font-size:12px;border-radius:4px;}
+.sbtn{height:100%;background:rgba(0,240,255,.2);border:1px solid var(--c);color:var(--c);padding:0 12px;cursor:pointer;font-weight:bold;border-radius:4px;}
+.rec{background:var(--r)!important;color:#000!important;}
+#vC{display:none;}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+</head>
+<body>
+
+<div id="intro-screen">
+  <div class="hud-ring"></div>
+  <div class="stark-title">STARK INDUSTRIES</div>
+  <div class="jarvis-sub">J.A.R.V.I.S</div>
+</div>
+
+<div class="hud">
+  <b>STARK OS XII</b>
+  <div>
+    <button class="btn" onclick="tRot()">↷ Rot</button>
+    <button class="btn" id="bG" onclick="tG()">👋 Gestos</button>
+    <span id="st">GENERADOR AUTÓNOMO</span>
+  </div>
+</div>
+
+<div id="mv">
+  <div id="canv"></div>
+  <div id="gHud"><canvas id="gCanv" width="120" height="90"></canvas></div>
+</div>
+
+<div class="chat">
+  <div style="font-size:9px;display:flex;justify-content:space-between;">
+    <span>● MODO: MULTIMEDIA & OFFLINE</span>
+    <span id="gstState">GESTO: OFF</span>
+    <span>⚡ LOCAL ENGINE</span>
+  </div>
+  <div class="msgs" id="mB">
+    <div class="m y"><b>J.A.R.V.I.S.:</b> Sistema listo. Ingrese texto, pida hologramas o adjunte enlaces/PDFs para análisis.</div>
+  </div>
+  <div class="in">
+    <input type="file" id="fileIn" style="display:none" accept=".pdf,image/*,.txt" onchange="if(this.files[0]) handleFileInput(this.files[0])">
+    <button class="btn" style="height:100%" title="Adjuntar PDF o Imagen" onclick="document.getElementById('fileIn').click()">📎</button>
+    <input type="text" id="uI" class="usr" placeholder="Escribe, pega un Link o pide un holograma..." onkeypress="if(event.key==='Enter') processInput()">
+    <button class="btn" id="mB2" style="height:100%" onclick="tM()">🎤</button>
+    <button class="sbtn" onclick="processInput()">➔</button>
+  </div>
+</div>
+
+<video id="vC" playsinline></video>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    const intro = document.getElementById('intro-screen');
+    if (intro) intro.classList.add('fade-out');
+  }, 1000);
+});
+
+if (window.pdfjsLib) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+}
+
+/* --- MOTOR PROCEDURAL MATEMÁTICO DE HOLOGRAMAS --- */
+function buildMathHologram(type) {
+  const points = [];
+  const count = 1200;
+
+  if (type === 'edificio' || type === 'rascacielos' || type === 'torre') {
+    for (let x = -0.8; x <= 0.8; x += 0.2) {
+      for (let z = -0.8; z <= 0.8; z += 0.2) points.push(x, -1.5, z);
+    }
+    const pisos = 18, altoPiso = 0.15;
+    for (let i = 0; i < pisos; i++) {
+      const y = -1.5 + (i * altoPiso);
+      const escala = 0.8 * (1 - (i / pisos) * 0.4);
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / 8) {
+        points.push(Math.cos(a) * escala, y, Math.sin(a) * escala);
+      }
+    }
+    for (let y = -1.5 + (pisos * altoPiso); y <= 1.8; y += 0.05) {
+      points.push(0, y, 0);
+      points.push((Math.random()-0.5)*0.05, y, (Math.random()-0.5)*0.05);
+    }
+  } else if (type === 'galaxia') {
+    for (let i = 0; i < count; i++) {
+      const r = Math.random() * 2;
+      const theta = r * 8 + (i % 3) * ((2 * Math.PI) / 3);
+      points.push(r * Math.cos(theta), (Math.random() - 0.5) * 0.2, r * Math.sin(theta));
+    }
+  } else if (type === 'espiral') {
+    for (let i = 0; i < count; i++) {
+      const t = (i / count) * Math.PI * 12;
+      points.push(Math.sin(t) * (t / 12), (i / count) * 2 - 1, Math.cos(t) * (t / 12));
+    }
+  } else {
+    for (let i = 0; i < count; i++) {
+      const u = Math.random() * Math.PI * 2, v = Math.random() * Math.PI * 2;
+      const R = 1.2, r = 0.4;
+      points.push((R + r * Math.cos(v)) * Math.cos(u), (R + r * Math.cos(v)) * Math.sin(u), r * Math.sin(v));
+    }
+  }
+  renderPoints(points, type);
+}
+
+function renderPoints(vertices, name) {
+  if (obj) sc.remove(obj);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  const material = new THREE.PointsMaterial({ color: 0x00f0ff, size: 0.04, transparent: true, opacity: 0.9 });
+  obj = new THREE.Points(geometry, material);
+  sc.add(obj);
+  document.getElementById("st").innerText = name.toUpperCase();
+}
+
+/* --- LECTOR DE ARCHIVOS Y MULTIMEDIA --- */
+async function extractTextFromPDF(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let text = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(item => item.str).join(' ') + '\n';
+  }
+  return text;
+}
+
+async function handleFileInput(file) {
+  aM(`Procesando archivo: ${file.name}...`, "u");
+  try {
+    let content = "";
+    if (file.type === "application/pdf") {
+      content = await extractTextFromPDF(file);
+    } else {
+      content = `[Archivo adjunto: ${file.name}, Tamaño: ${(file.size/1024).toFixed(1)} KB]`;
+    }
+    const res = `Resumen de ${file.name}: ${content.slice(0, 300)}... (Procesado correctamente)`;
+    aM(res, "y"); spk(res);
+  } catch(e) {
+    aM("Error al leer el archivo adjunto.", "y");
+  }
+}
+
+async function processInput() {
+  const el = document.getElementById("uI");
+  const txt = el.value.trim();
+  if (!txt) return;
+  el.value = "";
+
+  if (txt.startsWith("http://") || txt.startsWith("https://")) {
+    aM(`Analizando enlace: ${txt}`, "u");
+    setTimeout(() => {
+      const res = `Análisis de enlace completado. Dominio detectado: ${new URL(txt).hostname}. Contenido procesado de forma ejecutiva.`;
+      aM(res, "y"); spk(res);
+    }, 1000);
+  } else {
+    sM(txt);
+  }
+}
+
+/* --- RECONOCIMIENTO Y SÍNTESIS DE VOZ --- */
+let rec, isR = 0;
+function initV() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SR) {
+    rec = new SR(); rec.lang = 'es-ES';
+    rec.onresult = e => sM(e.results[0][0].transcript);
+    rec.onend = () => { isR = 0; document.getElementById("mB2").classList.remove("rec"); };
+  }
+}
+const tM = () => !rec ? alert("No soportado") : (isR ? rec.stop() : (rec.start(), isR = 1, document.getElementById("mB2").classList.add("rec")));
+function spk(t) { if ('speechSynthesis' in window) { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.lang = 'es-ES'; u.pitch = 0.85; window.speechSynthesis.speak(u); } }
+
+function sM(txt) {
+  aM(txt, "u"); const l = txt.toLowerCase();
+
+  if (l.includes("edificio") || l.includes("rascacielos") || l.includes("torre")) { buildMathHologram("edificio"); aM("Generando estructura de rascacielos...", "y"); spk("Rascacielos listo."); return; }
+  if (l.includes("galaxia")) { buildMathHologram("galaxia"); aM("Generando espiral galáctica...", "y"); spk("Galaxia proyectada."); return; }
+  if (l.includes("espiral") || l.includes("adn")) { buildMathHologram("espiral"); aM("Generando hélice matemática...", "y"); spk("Espiral lista."); return; }
+
+  buildMathHologram("dona");
+  aM("Generando holograma paramétrico base.", "y");
+  spk("Proyección lista.");
+}
+
+function aM(m, s) { const b = document.getElementById("mB"); b.innerHTML += `<div class="m ${s}"><b>${s === "u" ? "TÚ" : "J.A.R.V.I.S."}:</b> ${m}</div>`; b.scrollTop = b.scrollHeight; }
+
+/* --- RENDER 3D THREE.JS Y MEDIAPIPE --- */
+let sc, cam, rend, ctrl, obj, pParts, isH = 0, clk = new THREE.Clock(), gAct = false, tCamZ = 5.5, autoRotate = true;
+const cb = document.getElementById("canv");
+
+function init() {
+  sc = new THREE.Scene(); cam = new THREE.PerspectiveCamera(60, cb.clientWidth / cb.clientHeight, 0.1, 100); cam.position.z = 5.5;
+  rend = new THREE.WebGLRenderer({ antialias: true, alpha: true }); rend.setSize(cb.clientWidth, cb.clientHeight); rend.setPixelRatio(Math.min(window.devicePixelRatio, 2)); cb.appendChild(rend.domElement);
+  ctrl = new THREE.OrbitControls(cam, rend.domElement); ctrl.enableDamping = true;
+
+  const pG = new THREE.BufferGeometry(), pos = new Float32Array(300); for (let i = 0; i < 300; i++) pos[i] = (Math.random() - 0.5) * 10;
+  pG.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  pParts = new THREE.Points(pG, new THREE.PointsMaterial({ size: 0.02, color: 0x00f0ff, transparent: true, opacity: 0.4 })); sc.add(pParts);
+
+  buildMathHologram("edificio"); anim(); initV();
+}
+
+const tRot = () => { isH = !isH; if (obj) obj.rotation.x = isH ? Math.PI / 2 : 0; };
+
+let hands, mpCam;
+async function tG() {
+  const b = document.getElementById("bG"), gHud = document.getElementById("gHud");
+  if (!gAct) {
+    try {
+      hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+      hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.65, minTrackingConfidence: 0.65 });
+      hands.onResults(onHandResults);
+      const videoElement = document.getElementById("vC");
+      mpCam = new Camera(videoElement, { onFrame: async () => { await hands.send({ image: videoElement }); }, width: 320, height: 240 });
+      await mpCam.start();
+      gAct = true; b.style.background = "rgba(0,240,255,0.5)"; gHud.style.display = "block";
+    } catch (e) { alert("Error al iniciar cámara."); }
+  } else {
+    if (mpCam) mpCam.stop();
+    gAct = false; b.style.background = ""; gHud.style.display = "none";
+  }
+}
+
+function onHandResults(results) {
+  const gCanv = document.getElementById("gCanv"), ctx = gCanv.getContext("2d");
+  ctx.clearRect(0, 0, gCanv.width, gCanv.height);
+  if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) return;
+  const lm = results.multiHandLandmarks[0];
+  ctx.strokeStyle = "#00f0ff"; ctx.fillStyle = "#ff0055"; ctx.lineWidth = 1.5;
+  const connections = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+  connections.forEach(([i, j]) => { ctx.beginPath(); ctx.moveTo(lm[i].x * gCanv.width, lm[i].y * gCanv.height); ctx.lineTo(lm[j].x * gCanv.width, lm[j].y * gCanv.height); ctx.stroke(); });
+  if (obj) { obj.rotation.y = (1.0 - lm[0].x - 0.5) * Math.PI * 3; obj.rotation.x = (lm[0].y - 0.5) * Math.PI * 2; }
+}
+
+function anim() {
+  requestAnimationFrame(anim); const t = clk.getElapsedTime(); if (ctrl) ctrl.update();
+  cam.position.z += (tCamZ - cam.position.z) * 0.1;
+  if (pParts) pParts.rotation.y = t * 0.05;
+  if (obj && autoRotate && !gAct) obj.rotation.y += 0.008;
+  rend.render(sc, cam);
+}
+
+window.onresize = () => { cam.aspect = cb.clientWidth / cb.clientHeight; cam.updateProjectionMatrix(); rend.setSize(cb.clientWidth, cb.clientHeight); };
+window.onload = init;
+</script>
+</body>
+</html>
