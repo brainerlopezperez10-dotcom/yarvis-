@@ -1,0 +1,3 @@
+async function extractTextFromPDF(f){let p=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise,t="";for(let i=1;i<=p.numPages;i++)t+=(await(await p.getPage(i)).getTextContent()).items.map(x=>x.str).join(" ")+"\n";return t}
+async function handleFileInput(f){aM(`📂 Procesando ${f.name}...`,"u");try{let c=f.type==="application/pdf"?await extractTextFromPDF(f):await f.text(),x=f.type.startsWith("image/")?await analyzeImage(f):await fAI(`Analiza este archivo:\n${c.slice(0,12000)}`);aM(x,"y");spk(x)}catch(e){aM("Error al procesar archivo.","y")}}
+function createFile(name,content){let u=URL.createObjectURL(new Blob([content],{type:"text/plain"})),a=document.createElement("a");a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
