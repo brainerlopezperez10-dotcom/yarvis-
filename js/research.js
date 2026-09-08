@@ -1,0 +1,2 @@
+async function webFetch(u){try{let r=await fetch(u);return r.ok?await r.json():null}catch(e){return null}}
+async function research(q){aM("🌐 Investigando...","y");let w=await webFetch("https://es.wikipedia.org/api/rest_v1/page/summary/"+encodeURIComponent(q)),s=w?.extract||"No se encontraron datos.";let a=await fAI(`Investiga "${q}" usando este material:\n${s}\nExplica los datos importantes y diferencia hechos de inferencias.`);aM(a,"y");spk(a)}
