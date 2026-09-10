@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<meta name="theme-color" content="#020609">
+
+<title>YARVIS — STARK OS</title>
+
+<style>
+
+*{
+box-sizing:border-box;
+margin:0;
+padding:0;
+}
+
+html,body{
+width:100%;
+height:100%;
+overflow:hidden;
+background:#020609;
+color:#dffcff;
+font-family:Arial,Helvetica,sans-serif;
+}
+
+body{
+display:flex;
+justify-content:center;
+}
+
+#app{
+width:100%;
+max-width:900px;
+height:100%;
+display:flex;
+flex-direction:column;
+position:relative;
+overflow:hidden;
+background:
+radial-gradient(circle at 50% 15%,rgba(0,255,255,.08),transparent 35%),
+#020609;
+}
+
+/* HEADER */
+
+#header{
+height:58px;
+min-height:58px;
+display:flex;
+align-items:center;
+justify-content:space-between;
+padding:0 16px;
+border-bottom:1px solid rgba(0,255,255,.2);
+background:rgba(0,10,14,.85);
+z-index:10;
+}
+
+.brand{
+display:flex;
+align-items:center;
+gap:10px;
+}
+
+.logo{
+width:30px;
+height:30px;
+border:2px solid #00f6ff;
+border-radius:50%;
+box-shadow:
+0 0 8px rgba(0,246,255,.7),
+inset 0 0 8px rgba(0,246,255,.3);
+position:relative;
+}
+
+.logo:before,
+.logo:after{
+content:"";
+position:absolute;
+left:50%;
+top:50%;
+transform:translate(-50%,-50%);
+background:#00f6ff;
+}
+
+.logo:before{
+width:12px;
+height:2px;
+}
+
+.logo:after{
+width:2px;
+height:12px;
+}
+
+.title{
+font-size:17px;
+font-weight:bold;
+letter-spacing:3px;
+color:#00f6ff;
+}
+
+.subtitle{
+font-size:9px;
+letter-spacing:2px;
+color:#66858b;
+margin-top:2px;
+}
+
+.status{
+display:flex;
+align-items:center;
+gap:7px;
+font-size:9px;
+letter-spacing:1.5px;
+color:#6dffbd;
+}
+
+.status-dot{
+width:7px;
+height:7px;
+border-radius:50%;
+background:#6dffbd;
+box-shadow:0 0 10px #6dffbd;
+}
+
+/* HOLOGRAMA */
+
+#hologramArea{
+position:relative;
+width:100%;
+height:43%;
+min-height:230px;
+max-height:430px;
+overflow:hidden;
+display:flex;
+justify-content:center;
+align-items:center;
+border-bottom:1px solid rgba(0,255,255,.12);
+}
+
+#hologramCanvas{
+width:100%;
+height:100%;
+display:block;
+}
+
+.holo-label{
+position:absolute;
+left:16px;
+top:14px;
+font-size:9px;
+letter-spacing:2px;
+color:#00f6ff;
+opacity:.8;
+pointer-events:none;
+}
+
+.holo-status{
+position:absolute;
+right:16px;
+top:14px;
+text-align:right;
+font-size:8px;
+line-height:15px;
+letter-spacing:1.5px;
+color:#55777d;
+pointer-events:none;
+}
+
+.holo-bottom{
+position:absolute;
+bottom:12px;
+left:0;
+width:100%;
+text-align:center;
+font-size:8px;
+letter-spacing:3px;
+color:#31575e;
+pointer-events:none;
+}
+
+/* CHAT */
+
+#chat{
+flex:1;
+overflow-y:auto;
+padding:14px 13px 10px;
+scroll-behavior:smooth;
+}
+
+#chat::-webkit-scrollbar{
+width:4px;
+}
+
+#chat::-webkit-scrollbar-thumb{
+background:#08373d;
+border-radius:5px;
+}
+
+.message{
+max-width:88%;
+margin-bottom:12px;
+padding:10px 12px;
+border-radius:10px;
+line-height:1.45;
+font-size:14px;
+white-space:pre-wrap;
+word-wrap:break-word;
+}
+
+.message.y{
+margin-right:auto;
+background:rgba(0,255,255,.055);
+border:1px solid rgba(0,255,255,.18);
+color:#dffcff;
+}
+
+.message.u{
+margin-left:auto;
+background:rgba(255,0,160,.07);
+border:1px solid rgba(255,0,160,.2);
+color:#ffe5f5;
+}
+
+.message-label{
+display:block;
+font-size:8px;
+letter-spacing:2px;
+margin-bottom:5px;
+opacity:.55;
+}
+
+/* BARRA */
+
+#bottom{
+padding:9px 10px 10px;
+border-top:1px solid rgba(0,255,255,.16);
+background:rgba(0,8,11,.95);
+}
+
+#inputRow{
+display:flex;
+gap:7px;
+align-items:center;
+}
+
+#input{
+flex:1;
+min-width:0;
+height:44px;
+padding:0 13px;
+border-radius:10px;
+outline:none;
+border:1px solid rgba(0,255,255,.2);
+background:#031014;
+color:#e8ffff;
+font-size:14px;
+}
+
+#input:focus{
+border-color:rgba(0,255,255,.55);
+box-shadow:0 0 12px rgba(0,255,255,.08);
+}
+
+#input::placeholder{
+color:#45666c;
+}
+
+.action{
+width:44px;
+height:44px;
+flex-shrink:0;
+border-radius:10px;
+border:1px solid rgba(0,255,255,.2);
+background:#041318;
+color:#00f6ff;
+font-size:18px;
+cursor:pointer;
+}
+
+.action:active{
+transform:scale(.95);
+background:#09252b;
+}
+
+#btnSend{
+border-color:rgba(0,255,255,.5);
+background:rgba(0,255,255,.08);
+}
+
+#tools{
+display:flex;
+gap:7px;
+margin-top:8px;
+}
+
+.tool{
+flex:1;
+height:31px;
+border-radius:8px;
+border:1px solid rgba(0,255,255,.14);
+background:#031014;
+color:#689198;
+font-size:9px;
+letter-spacing:1px;
+cursor:pointer;
+}
+
+.tool:active{
+transform:scale(.97);
+}
+
+#devBtn{
+color:#ff65bd;
+border-color:rgba(255,0,160,.22);
+}
+
+/* DEV */
+
+#devPanel{
+display:none;
+position:absolute;
+z-index:100;
+inset:0;
+background:rgba(0,4,7,.97);
+padding:18px;
+overflow-y:auto;
+}
+
+#devPanel.open{
+display:block;
+}
+
+.dev-head{
+display:flex;
+justify-content:space-between;
+align-items:center;
+margin-bottom:18px;
+padding-bottom:12px;
+border-bottom:1px solid rgba(255,0,160,.2);
+}
+
+.dev-title{
+color:#ff65bd;
+letter-spacing:3px;
+font-size:16px;
+}
+
+#devClose{
+width:35px;
+height:35px;
+border-radius:8px;
+border:1px solid rgba(255,0,160,.25);
+background:#120711;
+color:#ff65bd;
+font-size:18px;
+}
+
+.dev-card{
+border:1px solid rgba(0,255,255,.13);
+background:#031014;
+border-radius:10px;
+padding:13px;
+margin-bottom:10px;
+}
+
+.dev-card h3{
+color:#00f6ff;
+font-size:10px;
+letter-spacing:2px;
+margin-bottom:10px;
+}
+
+.dev-row{
+display:flex;
+justify-content:space-between;
+gap:10px;
+padding:6px 0;
+border-bottom:1px solid rgba(255,255,255,.04);
+font-size:11px;
+}
+
+.dev-row:last-child{
+border-bottom:0;
+}
+
+.dev-value{
+color:#6dffbd;
+text-align:right;
+word-break:break-word;
+}
+
+#devLog{
+max-height:220px;
+overflow:auto;
+color:#739399;
+font-size:10px;
+line-height:1.5;
+white-space:pre-wrap;
+}
+
+/* PASSWORD */
+
+#passwordModal{
+display:none;
+position:absolute;
+inset:0;
+z-index:200;
+background:rgba(0,4,7,.94);
+align-items:center;
+justify-content:center;
+padding:20px;
+}
+
+#passwordModal.show{
+display:flex;
+}
+
+.password-box{
+width:100%;
+max-width:360px;
+padding:20px;
+border-radius:12px;
+border:1px solid rgba(255,0,160,.3);
+background:#061014;
+box-shadow:0 0 30px rgba(255,0,160,.08);
+}
+
+.password-box h2{
+color:#ff65bd;
+font-size:15px;
+letter-spacing:3px;
+margin-bottom:7px;
+}
+
+.password-box p{
+color:#607d82;
+font-size:11px;
+margin-bottom:15px;
+}
+
+#devPasswordInput{
+width:100%;
+height:43px;
+padding:0 12px;
+border-radius:8px;
+border:1px solid rgba(255,0,160,.2);
+background:#02090c;
+color:white;
+outline:none;
+margin-bottom:9px;
+}
+
+.password-buttons{
+display:flex;
+gap:8px;
+}
+
+.password-buttons button{
+flex:1;
+height:38px;
+border-radius:8px;
+border:1px solid rgba(255,255,255,.1);
+background:#07161b;
+color:#8ca7ab;
+}
+
+#devLogin{
+color:#ff65bd;
+border-color:rgba(255,0,160,.3);
+}
+
+/* MOBILE */
+
+@media(max-height:650px){
+
+#hologramArea{
+height:34%;
+min-height:190px;
+}
+
+#header{
+height:50px;
+min-height:50px;
+}
+
+.message{
+font-size:13px;
+}
+
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="app">
+
+<header id="header">
+
+<div class="brand">
+
+<div class="logo"></div>
+
+<div>
+<div class="title">YARVIS</div>
+<div class="subtitle">STARK OS • MARK XIV</div>
+</div>
+
+</div>
+
+<div class="status">
+<span class="status-dot"></span>
+<span id="status">ONLINE</span>
+</div>
+
+</header>
+
+
+<section id="hologramArea">
+
+<canvas id="hologramCanvas"></canvas>
+
+<div class="holo-label">
+STARK // HOLOGRAPHIC CORE
+</div>
+
+<div class="holo-status">
+<div>ENGINE: <span id="estadoLabel">ONLINE</span></div>
+<div>CORE: MARK XIV</div>
+<div id="coreStatus">READY</div>
+</div>
+
+<div class="holo-bottom">
+J.A.R.V.I.S. NEURAL INTERFACE
+</div>
+
+</section>
+
+
+<main id="chat">
+
+<div class="message y">
+
+<span class="message-label">
+J.A.R.V.I.S.
+</span>
+
+¡Hola! ¿En qué puedo ayudarte hoy? 😀
+
+</div>
+
+</main>
+
+
+<section id="bottom">
+
+<div id="inputRow">
+
+<input
+id="input"
+type="text"
+autocomplete="off"
+placeholder="Habla con YARVIS..."
+>
+
+<button
+id="btnMic"
+class="action"
+type="button"
+title="Voz"
+>
+🎙️
+</button>
+
+<button
+id="btnImg"
+class="action"
+type="button"
+title="Imagen"
+>
+🖼️
+</button>
+
+<button
+id="btnSend"
+class="action"
+type="button"
+title="Enviar"
+>
+➤
+</button>
+
+</div>
+
+
+<div id="tools">
+
+<button
+id="fileBtn"
+class="tool"
+type="button"
+>
+📎 ARCHIVO
+</button>
+
+<button
+id="clearBtn"
+class="tool"
+type="button"
+>
+🗑 LIMPIAR
+</button>
+
+<button
+id="devBtn"
+class="tool"
+type="button"
+>
+⚙ DEV
+</button>
+
+</div>
+
+</section>
+
+
+<input
+id="fileImg"
+type="file"
+accept="image/*"
+style="display:none"
+>
+
+<input
+id="fileInput"
+type="file"
+accept=".pdf,.txt,.csv,.js,.json,.html,.css,image/*"
+style="display:none"
+>
+
+
+<section id="devPanel">
+
+<div class="dev-head">
+
+<div class="dev-title">
+YARVIS // DEV MODE
+</div>
+
+<button
+id="devClose"
+type="button"
+>
+×
+</button>
+
+</div>
+
+
+<div class="dev-card">
+
+<h3>SISTEMA</h3>
+
+<div class="dev-row">
+<span>Estado</span>
+<span class="dev-value" id="devSystem">ONLINE</span>
+</div>
+
+<div class="dev-row">
+<span>OpenRouter</span>
+<span class="dev-value" id="devOpenRouter">---</span>
+</div>
+
+<div class="dev-row">
+<span>Modelos configurados</span>
+<span class="dev-value" id="devModels">0</span>
+</div>
+
+<div class="dev-row">
+<span>Modelos respondieron</span>
+<span class="dev-value" id="devAnswered">0</span>
+</div>
+
+<div class="dev-row">
+<span>Modelos fallidos</span>
+<span class="dev-value" id="devFailed">0</span>
+</div>
+
+<div class="dev-row">
+<span>Última consulta</span>
+<span class="dev-value" id="devElapsed">---</span>
+</div>
+
+</div>
+
+
+<div class="dev-card">
+
+<h3>YARVIS COUNCIL</h3>
+
+<div class="dev-row">
+<span>Modo</span>
+<span class="dev-value">MULTI-MODEL</span>
+</div>
+
+<div class="dev-row">
+<span>Evaluación</span>
+<span class="dev-value">AUTOMÁTICA</span>
+</div>
+
+<div class="dev-row">
+<span>Juez</span>
+<span class="dev-value" id="devJudge">---</span>
+</div>
+
+</div>
+
+
+<div class="dev-card">
+
+<h3>LOG</h3>
+
+<div id="devLog">
+YARVIS DEV iniciado.
+</div>
+
+</div>
+
+</section>
+
+
+<section id="passwordModal">
+
+<div class="password-box">
+
+<h2>DEV ACCESS</h2>
+
+<p>
+Introduce la contraseña del modo desarrollador.
+</p>
+
+<input
+id="devPasswordInput"
+type="password"
+placeholder="Contraseña DEV"
+autocomplete="off"
+>
+
+<div class="password-buttons">
+
+<button
+id="devCancel"
+type="button"
+>
+CANCELAR
+</button>
+
+<button
+id="devLogin"
+type="button"
+>
+ENTRAR
+</button>
+
+</div>
+
+</div>
+
+</section>
+
+</div>
+
+
+<!-- CONFIGURACIÓN -->
+
+<script>
+
+const _pO = "sk-or-v1-";
+
+window.OPENROUTER_KEY =
+_pO + "9fea2ac08959a4b3295693d2ef0c68fa0" + "11687142245db866db7b0abf449c6cc";
+
+window.DEV_PASSWORD =
+"051121";
+
+window.YARVIS_CONFIG = {
+
+OPENROUTER_KEY:
+window.OPENROUTER_KEY,
+
+DEV_PASSWORD:
+window.DEV_PASSWORD,
+
+MODEL_COUNT:40,
+
+USE_COUNCIL:true,
+
+CONCURRENCY:5
+
+};
+
+</script>
+
+
+<!-- THREE.JS -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+
+<!-- MODEL HUB -->
+
+<script src="./js/modelhub.js"></script>
+
+
+<!-- COUNCIL -->
+
+<script src="./js/council.js"></script>
+
+
+<!-- HOLOGRAMA -->
+
+<script src="./js/hologram.js"></script>
+
+
+<!-- APP -->
+
+<script src="./app.js"></script>
+
+
+<!-- PRUEBA DE CARGA -->
+
+<script>
+
+window.addEventListener("load",function(){
+
+console.log("================================");
+console.log("YARVIS STARK OS");
+console.log("================================");
+
+console.log(
+"app.js cargado. Interfaz lista."
+);
+
+console.log(
+"Botón enviar:",
+!!document.getElementById("btnSend")
+);
+
+console.log(
+"Campo texto:",
+!!document.getElementById("input")
+);
+
+console.log(
+"Chat:",
+!!document.getElementById("chat")
+);
+
+});
+
+</script>
+
+</body>
+</html>
